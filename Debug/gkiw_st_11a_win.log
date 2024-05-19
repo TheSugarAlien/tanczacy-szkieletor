@@ -1,0 +1,15 @@
+﻿  lodepng.cpp
+  main_file.cpp
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(191,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(206,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(210,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(340,25): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(341,25): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+  shaderprogram.cpp
+  Generating Code...
+main_file.obj : error LNK2019: unresolved external symbol "public: __thiscall Assimp::Importer::Importer(void)" (??0Importer@Assimp@@QAE@XZ) referenced in function "void __cdecl loadModel(class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >)" (?loadModel@@YAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z)
+main_file.obj : error LNK2019: unresolved external symbol "public: __thiscall Assimp::Importer::~Importer(void)" (??1Importer@Assimp@@QAE@XZ) referenced in function "void __cdecl loadModel(class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >)" (?loadModel@@YAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z)
+main_file.obj : error LNK2019: unresolved external symbol "public: struct aiScene const * __thiscall Assimp::Importer::ReadFile(char const *,unsigned int)" (?ReadFile@Importer@Assimp@@QAEPBUaiScene@@PBDI@Z) referenced in function "public: struct aiScene const * __thiscall Assimp::Importer::ReadFile(class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > const &,unsigned int)" (?ReadFile@Importer@Assimp@@QAEPBUaiScene@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@I@Z)
+main_file.obj : error LNK2019: unresolved external symbol "public: char const * __thiscall Assimp::Importer::GetErrorString(void)const " (?GetErrorString@Importer@Assimp@@QBEPBDXZ) referenced in function "void __cdecl loadModel(class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >)" (?loadModel@@YAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z)
+assimp\lib\assimp-vc143-mt.lib : warning LNK4272: library machine type 'x64' conflicts with target machine type 'x86'
+C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\Debug\gkiw_st_11a_win.exe : fatal error LNK1120: 4 unresolved externals

@@ -186,7 +186,7 @@ void loadModel(std::string plik) {
     cout << importer.GetErrorString() << endl;
 
     aiMesh* mesh = scene->mMeshes[0];
-    std::cout << mesh->mNumBones;
+    cout << mesh->mNumBones;
 
     for (int i = 0; i < mesh->mNumVertices; i++) {
         aiVector3D vertex = mesh->mVertices[i]; //aiVector3D podobny do glm::vec3
@@ -218,14 +218,14 @@ void loadModel(std::string plik) {
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
-	glClearColor(0,0,1,0);
+	glClearColor(0.25,0.25,0.05,0);
 	glEnable(GL_DEPTH_TEST);
 	glfwSetWindowSizeCallback(window,windowResizeCallback);
 	glfwSetKeyCallback(window,keyCallback);
 
 	sp=new ShaderProgram("v_simplest.glsl",NULL,"f_simplest.glsl");
 
-	tex0 = readTexture("metal.png");
+	tex0 = readTexture("skeleton_tex.png");
 	tex1 = readTexture("sky.png");
 	loadModel(std::string("skeleton.obj"));
 }
@@ -249,11 +249,11 @@ void drawScene(GLFWwindow* window,float angle_x,float angle_y) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glm::mat4 V=glm::lookAt(
-         glm::vec3(0, 0, 5),
+         glm::vec3(0, 3, 5),
          glm::vec3(0,0,0),
          glm::vec3(0.0f,1.0f,0.0f)); //Wylicz macierz widoku
 
-    glm::mat4 P=glm::perspective(50.0f*PI/180.0f, aspectRatio, 0.01f, 50.0f); //Wylicz macierz rzutowania
+    glm::mat4 P=glm::perspective(100.0f*PI/180.0f, aspectRatio, 0.01f, 50.0f); //Wylicz macierz rzutowania
 
     glm::mat4 M=glm::mat4(1.0f);
 	M=glm::rotate(M,angle_y,glm::vec3(1.0f,0.0f,0.0f)); //Wylicz macierz modelu

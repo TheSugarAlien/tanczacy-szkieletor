@@ -1,0 +1,9 @@
+﻿  main_file.cpp
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(191,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(206,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(210,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(221,31): warning C4305: 'argument': truncation from 'double' to 'GLclampf'
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(290,78): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(340,25): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\kacpe\source\repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(341,25): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+  gkiw_st_11a_win.vcxproj -> C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\x64\Debug\gkiw_st_11a_win.exe
