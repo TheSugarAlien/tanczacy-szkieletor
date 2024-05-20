@@ -1,11 +1,47 @@
+//Do przeanalizowania
 #version 330
 
 uniform sampler2D textureMap0;
 
-out vec4 pixelColor; //Zmienna wyjściowa fragment shadera. Zapisuje się do niej ostateczny (prawie) kolor piksela
+out vec4 pixelColor; // Zmienna wyjściowa fragment shadera. Zapisuje się do niej ostateczny (prawie) kolor piksela
 
 in vec2 iTexCoord0;
-in vec4 ic; 
+in vec4 ic;
+in vec4 n;
+in vec4 l;
+in vec4 v;
+
+void main(void) {
+    // Znormalizowane interpolowane wektory
+    vec4 ml = normalize(l);
+    vec4 mn = normalize(n);
+    vec4 mv = normalize(v);
+    // Wektor odbity
+    vec4 mr = reflect(-ml, mn);
+
+    // Parametry powierzchni
+    vec4 kd = texture(textureMap0, iTexCoord0);
+    vec4 ks = vec4(1, 1, 1, 1);
+    vec4 ambient = vec4(0.3, 0.3, 0.3, 1.0); // Światło otoczenia
+    vec4 diffuse = vec4(0.6, 0.6, 0.6, 1.0); // Składowa dyfuzyjna
+    vec4 specular = vec4(1.0, 1.0, 1.0, 1.0); // Składowa zwierciadlana
+
+    // Obliczenie modelu oświetlenia Phonga
+    float nl = max(dot(mn, ml), 0.0);
+    float rv = pow(max(dot(mr, mv), 0.0), 50);
+    pixelColor = ambient * kd + diffuse * kd * nl + specular * ks * rv;
+}
+
+
+/*
+#version 330
+
+uniform sampler2D textureMap0;
+
+out vec4 pixelColor; // Zmienna wyjściowa fragment shadera. Zapisuje się do niej ostateczny (prawie) kolor piksela
+
+in vec2 iTexCoord0;
+in vec4 ic;
 in vec4 n;
 in vec4 l;
 in vec4 v;
@@ -28,3 +64,5 @@ void main(void) {
     float rv = pow(clamp(dot(mr, mv), 0, 1), 50);
     pixelColor = ambient + vec4(kd.rgb * nl, kd.a) + vec4(ks.rgb * rv, 0);
 }
+
+*/
