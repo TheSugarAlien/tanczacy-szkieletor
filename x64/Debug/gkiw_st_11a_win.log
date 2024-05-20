@@ -1,6 +1,0 @@
-﻿  main_file.cpp
-C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(302,91): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(326,97): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(375,25): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\main_file.cpp(376,25): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
-  gkiw_st_11a_win.vcxproj -> C:\Users\kacpe\Source\Repos\TheSugarAlien\tanczacy-szkieletor\x64\Debug\gkiw_st_11a_win.exe
