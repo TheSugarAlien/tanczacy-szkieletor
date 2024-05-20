@@ -169,6 +169,7 @@ void processNode(aiNode* node, const aiScene* scene, const glm::mat4& parentTran
     // Process all meshes assigned to this node
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        std::cout << mesh->mNumBones;
         importujMesh(mesh, nodeTransform, vertexOffset);
     }
 
@@ -178,40 +179,27 @@ void processNode(aiNode* node, const aiScene* scene, const glm::mat4& parentTran
     }
 }
 
-void loadModel(std::string plik) {
+void loadModel(const std::string& plik) {
     using namespace std;
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(plik,
         aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
-    cout << importer.GetErrorString() << endl;
 
-    aiMesh* mesh = scene->mMeshes[0];
-    cout << mesh->mNumBones;
-
-    for (int i = 0; i < mesh->mNumVertices; i++) {
-        aiVector3D vertex = mesh->mVertices[i]; //aiVector3D podobny do glm::vec3
-
-        verts.push_back(glm::vec4(vertex.x, vertex.y, vertex.z, 1));
-
-        aiVector3D normal = mesh->mNormals[i]; //Wektory znormalizowane
-        norms.push_back(glm::vec4(normal.x, normal.y, normal.z, 0));
-
-
-        //0 to numer zestawu współrzędnych teksturowania
-        aiVector3D texCoord = mesh->mTextureCoords[0][i];
-        texCoords.push_back(glm::vec2(vertex.x, vertex.y));
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
+        return;
     }
 
-    //dla każdego wielokąta składowego
-    for (int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace& face = mesh->mFaces[i]; //face to jeden z wielokątów siatki
-        //dla każdego indeksu->wierzchołka tworzącego wielokąt
-        //dla aiProcess_Triangulate to zawsze będzie 3
-        for (int j = 0; j < face.mNumIndices; j++) {
-            //cout << face.mIndices[j] << " ";
-            indices.push_back(face.mIndices[j]);
-        }
-    }
+    // Clear previous data
+    verts.clear();
+    norms.clear();
+    texCoords.clear();
+    indices.clear();
+
+    unsigned int vertexOffset = 0;
+
+    // Process the root node
+    processNode(scene->mRootNode, scene, glm::mat4(1.0f), vertexOffset);
 }
 
 
@@ -227,7 +215,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 
 	tex0 = readTexture("skeleton_tex.png");
 	tex1 = readTexture("sky.png");
-	loadModel(std::string("skeleton.obj"));
+	loadModel(std::string("szkielet1.fbx"));
 }
 
 
