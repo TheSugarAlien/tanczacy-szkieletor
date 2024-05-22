@@ -36,12 +36,15 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include <assimp/scene.h> //obiekt reprezentujacy calosc pliku
 #include <assimp/postprocess.h> //dodatkowe rzeczy ktore mozna robicz modelem
 #include <iostream>
+#include <map>
+#include <string>
+#include <vector>
 
-float speed_x=0;
-float speed_y=0;
-float aspectRatio=1;
+float speed_x = 0;
+float speed_y = 0;
+float aspectRatio = 1;
 
-ShaderProgram *sp;
+ShaderProgram* sp;
 
 std::vector <glm::vec4> verts;
 std::vector <glm::vec4> norms;
@@ -58,22 +61,6 @@ std::vector<glm::vec4> normsStage = norms;
 std::vector<glm::vec2> texCoordsStage = texCoords;
 std::vector<unsigned int> indicesStage = indices;
 
-
-//Odkomentuj, żeby rysować kostkę
-//float* vertices = myCubeVertices;
-//float* normals = myCubeNormals;
-//float* texCoords = myCubeTexCoords;
-//float* colors = myCubeColors;
-//int vertexCount = myCubeVertexCount;
-
-
-//Odkomentuj, żeby rysować czajnik
-//float* vertices = myTeapotVertices;
-//float* normals = myTeapotVertexNormals;
-//float* texCoords = myTeapotTexCoords;
-//float* colors = myTeapotColors;
-//int vertexCount = myTeapotVertexCount;
-
 GLuint tex0;
 GLuint tex1;
 GLuint texSkeleton;
@@ -81,29 +68,29 @@ GLuint texStage;
 
 //Procedura obsługi błędów
 void error_callback(int error, const char* description) {
-	fputs(description, stderr);
+    fputs(description, stderr);
 }
 
 
-void keyCallback(GLFWwindow* window,int key,int scancode,int action,int mods) {
-    if (action==GLFW_PRESS) {
-        if (key==GLFW_KEY_LEFT) speed_x=-PI;
-        if (key==GLFW_KEY_RIGHT) speed_x=PI;
-        if (key==GLFW_KEY_UP) speed_y=PI;
-        if (key==GLFW_KEY_DOWN) speed_y=-PI;
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS) {
+        if (key == GLFW_KEY_LEFT) speed_x = -PI;
+        if (key == GLFW_KEY_RIGHT) speed_x = PI;
+        if (key == GLFW_KEY_UP) speed_y = PI;
+        if (key == GLFW_KEY_DOWN) speed_y = -PI;
     }
-    if (action==GLFW_RELEASE) {
-        if (key==GLFW_KEY_LEFT) speed_x=0;
-        if (key==GLFW_KEY_RIGHT) speed_x=0;
-        if (key==GLFW_KEY_UP) speed_y=0;
-        if (key==GLFW_KEY_DOWN) speed_y=0;
+    if (action == GLFW_RELEASE) {
+        if (key == GLFW_KEY_LEFT) speed_x = 0;
+        if (key == GLFW_KEY_RIGHT) speed_x = 0;
+        if (key == GLFW_KEY_UP) speed_y = 0;
+        if (key == GLFW_KEY_DOWN) speed_y = 0;
     }
 }
 
-void windowResizeCallback(GLFWwindow* window,int width,int height) {
-    if (height==0) return;
-    aspectRatio=(float)width/(float)height;
-    glViewport(0,0,width,height);
+void windowResizeCallback(GLFWwindow* window, int width, int height) {
+    if (height == 0) return;
+    aspectRatio = (float)width / (float)height;
+    glViewport(0, 0, width, height);
 }
 
 GLuint readTexture(const char* filename) {
@@ -129,6 +116,32 @@ GLuint readTexture(const char* filename) {
     return tex;
 }
 
+struct BoneInfo {
+    glm::mat4 boneOffset;
+    glm::mat4 finalTransformation;
+};
+
+struct VertexBoneData {
+    unsigned int IDs[4] = { 0 };
+    float weights[4] = { 0.0f };
+
+    void addBoneData(unsigned int boneID, float weight) {
+        for (unsigned int i = 0; i < 4; i++) {
+            if (weights[i] == 0.0f) {
+                IDs[i] = boneID;
+                weights[i] = weight;
+                return;
+            }
+        }
+    }
+};
+
+std::vector<VertexBoneData> bones;
+std::map<std::string, unsigned int> boneMapping;
+std::vector<BoneInfo> boneInfo;
+unsigned int numBones = 0;
+
+
 void importujMesh(aiMesh* mesh, const glm::mat4& transform, unsigned int& vertexOffset) {
     // Process vertices
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
@@ -147,6 +160,8 @@ void importujMesh(aiMesh* mesh, const glm::mat4& transform, unsigned int& vertex
         else {
             texCoords.push_back(glm::vec2(0.0f, 0.0f));
         }
+
+        bones.push_back(VertexBoneData()); // Initialize bone data for each vertex
     }
 
     // Process indices
@@ -157,31 +172,42 @@ void importujMesh(aiMesh* mesh, const glm::mat4& transform, unsigned int& vertex
         }
     }
 
+    // Load bones
+    for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
+        aiBone* bone = mesh->mBones[i];
+        unsigned int boneIndex = 0;
+        std::string boneName(bone->mName.data);
+
+        if (boneMapping.find(boneName) == boneMapping.end()) {
+            boneIndex = numBones;
+            numBones++;
+            BoneInfo bi;
+            bi.boneOffset = glm::transpose(glm::make_mat4(&bone->mOffsetMatrix.a1));
+            boneInfo.push_back(bi);
+            boneMapping[boneName] = boneIndex;
+        }
+        else {
+            boneIndex = boneMapping[boneName];
+        }
+
+        for (unsigned int j = 0; j < bone->mNumWeights; ++j) {
+            aiVertexWeight& vw = bone->mWeights[j];
+            unsigned int vertexID = vertexOffset + vw.mVertexId;
+            bones[vertexID].addBoneData(boneIndex, vw.mWeight);
+        }
+    }
+
     // Update vertex offset
     vertexOffset += mesh->mNumVertices;
 }
 
-void printMatrix(const glm::mat4& matrix) {
-    const float* data = glm::value_ptr(matrix);
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            std::cout << data[i * 4 + j] << " ";
-        }
-        std::cout << std::endl;
-    }
-}
 
 void processNode(aiNode* node, const aiScene* scene, const glm::mat4& parentTransform, unsigned int& vertexOffset) {
     glm::mat4 nodeTransform = parentTransform * glm::transpose(glm::make_mat4(&node->mTransformation.a1));
 
-    std::cout << "Node name: " << node->mName.C_Str() << std::endl;
-    std::cout << "Transformation matrix: " << std::endl;
-    printMatrix(nodeTransform);
-
     // Process all meshes assigned to this node
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        std::cout << mesh->mNumBones;
         importujMesh(mesh, nodeTransform, vertexOffset);
     }
 
@@ -207,6 +233,10 @@ void loadModel(const std::string& plik) {
     norms.clear();
     texCoords.clear();
     indices.clear();
+    bones.clear();
+    boneMapping.clear();
+    boneInfo.clear();
+    numBones = 0;
 
     unsigned int vertexOffset = 0;
 
@@ -217,13 +247,13 @@ void loadModel(const std::string& plik) {
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
-	//************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
-	glClearColor(1,1,1,0);
-	glEnable(GL_DEPTH_TEST);
-	glfwSetWindowSizeCallback(window,windowResizeCallback);
-	glfwSetKeyCallback(window,keyCallback);
+    //************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
+    glClearColor(1, 1, 1, 0);
+    glEnable(GL_DEPTH_TEST);
+    glfwSetWindowSizeCallback(window, windowResizeCallback);
+    glfwSetKeyCallback(window, keyCallback);
 
-	sp=new ShaderProgram("v_simplest.glsl",NULL,"f_simplest.glsl");
+    sp = new ShaderProgram("v_simplest.glsl", NULL, "f_simplest.glsl");
 
     texSkeleton = readTexture("skeleton_tex_main.png");
     texStage = readTexture("disco_tex2.png");
@@ -241,7 +271,7 @@ void initOpenGLProgram(GLFWwindow* window) {
     texCoordsStage = texCoords;
     indicesStage = indices;
 
-	
+
 }
 
 
@@ -251,41 +281,41 @@ void freeOpenGLProgram(GLFWwindow* window) {
 
     delete sp;
 
-	glDeleteTextures(1, &tex0);
+    glDeleteTextures(1, &tex0);
 }
 
 
 
 
 //Procedura rysująca zawartość sceny
-void drawScene(GLFWwindow* window,float angle_x,float angle_y) {
-	//************Tutaj umieszczaj kod rysujący obraz******************l
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
+    //************Tutaj umieszczaj kod rysujący obraz******************l
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-	glm::mat4 V=glm::lookAt(
-         glm::vec3(-2, 10, -8),
-         glm::vec3(-2,4,0),
-         glm::vec3(0.0f,1.0f,0.0f)); //Wylicz macierz widoku
+    glm::mat4 V = glm::lookAt(
+        glm::vec3(-2, 10, -8),
+        glm::vec3(-2, 4, 0),
+        glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
 
-    //V = glm::rotate(V, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 0.0f)); 
+   //V = glm::rotate(V, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 0.0f)); 
 
-    glm::mat4 P=glm::perspective(100.0f*PI/180.0f, aspectRatio, 0.01f, 80.0f); //Wylicz macierz rzutowania
+    glm::mat4 P = glm::perspective(100.0f * PI / 180.0f, aspectRatio, 0.01f, 80.0f); //Wylicz macierz rzutowania
 
-    glm::mat4 M=glm::mat4(1.0f);
-	M=glm::rotate(M,-angle_y,glm::vec3(1.0f,0.0f,0.0f)); //Wylicz macierz modelu
-	M=glm::rotate(M,-angle_x,glm::vec3(0.0f,1.0f,0.0f)); //Wylicz macierz modelu
+    glm::mat4 M = glm::mat4(1.0f);
+    M = glm::rotate(M, -angle_y, glm::vec3(1.0f, 0.0f, 0.0f)); //Wylicz macierz modelu
+    M = glm::rotate(M, -angle_x, glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz modelu
 
 
     sp->use();//Aktywacja programu cieniującego
     //Przeslij parametry programu cieniującego do karty graficznej
-    glUniformMatrix4fv(sp->u("P"),1,false,glm::value_ptr(P));
-    glUniformMatrix4fv(sp->u("V"),1,false,glm::value_ptr(V));
+    glUniformMatrix4fv(sp->u("P"), 1, false, glm::value_ptr(P));
+    glUniformMatrix4fv(sp->u("V"), 1, false, glm::value_ptr(V));
 
 
     //Rysuj scene
     glm::mat4 M_stage = glm::scale(M, glm::vec3(1.5f, 1.0f, 1.5)); //Przeskaluj scene jeśli potrzeba
-    glUniformMatrix4fv(sp->u("M"),1,false,glm::value_ptr(M_stage));
+    glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_stage));
 
 
     glEnableVertexAttribArray(sp->a("vertex"));
@@ -305,11 +335,11 @@ void drawScene(GLFWwindow* window,float angle_x,float angle_y) {
     glDisableVertexAttribArray(sp->a("normal"));
     glDisableVertexAttribArray(sp->a("texCoord0"));
 
-   
-    
+
+
 
     // Rysuj szkielet
-    glm::mat4 M_skeleton = glm::translate(M, glm::vec3(-2.0f, 4.7f, 0.0f));  
+    glm::mat4 M_skeleton = glm::translate(M, glm::vec3(-2.0f, 4.7f, 0.0f));
     glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_skeleton));
 
     glEnableVertexAttribArray(sp->a("vertex"));
@@ -335,53 +365,53 @@ void drawScene(GLFWwindow* window,float angle_x,float angle_y) {
 
 int main(void)
 {
-	GLFWwindow* window; //Wskaźnik na obiekt reprezentujący okno
+    GLFWwindow* window; //Wskaźnik na obiekt reprezentujący okno
 
-	glfwSetErrorCallback(error_callback);//Zarejestruj procedurę obsługi błędów
+    glfwSetErrorCallback(error_callback);//Zarejestruj procedurę obsługi błędów
 
-	if (!glfwInit()) { //Zainicjuj bibliotekę GLFW
-		fprintf(stderr, "Nie można zainicjować GLFW.\n");
-		exit(EXIT_FAILURE);
-	}
+    if (!glfwInit()) { //Zainicjuj bibliotekę GLFW
+        fprintf(stderr, "Nie można zainicjować GLFW.\n");
+        exit(EXIT_FAILURE);
+    }
 
-	window = glfwCreateWindow(500, 500, "OpenGL", NULL, NULL);  //Utwórz okno 500x500 o tytule "OpenGL" i kontekst OpenGL.
+    window = glfwCreateWindow(500, 500, "OpenGL", NULL, NULL);  //Utwórz okno 500x500 o tytule "OpenGL" i kontekst OpenGL.
 
-	if (!window) //Jeżeli okna nie udało się utworzyć, to zamknij program
-	{
-		fprintf(stderr, "Nie można utworzyć okna.\n");
-		glfwTerminate();
-		exit(EXIT_FAILURE);
-	}
+    if (!window) //Jeżeli okna nie udało się utworzyć, to zamknij program
+    {
+        fprintf(stderr, "Nie można utworzyć okna.\n");
+        glfwTerminate();
+        exit(EXIT_FAILURE);
+    }
 
-	glfwMakeContextCurrent(window); //Od tego momentu kontekst okna staje się aktywny i polecenia OpenGL będą dotyczyć właśnie jego.
-	glfwSwapInterval(1); //Czekaj na 1 powrót plamki przed pokazaniem ukrytego bufora
+    glfwMakeContextCurrent(window); //Od tego momentu kontekst okna staje się aktywny i polecenia OpenGL będą dotyczyć właśnie jego.
+    glfwSwapInterval(1); //Czekaj na 1 powrót plamki przed pokazaniem ukrytego bufora
 
-	if (glewInit() != GLEW_OK) { //Zainicjuj bibliotekę GLEW
-		fprintf(stderr, "Nie można zainicjować GLEW.\n");
-		exit(EXIT_FAILURE);
-	}
+    if (glewInit() != GLEW_OK) { //Zainicjuj bibliotekę GLEW
+        fprintf(stderr, "Nie można zainicjować GLEW.\n");
+        exit(EXIT_FAILURE);
+    }
 
-	initOpenGLProgram(window); //Operacje inicjujące
+    initOpenGLProgram(window); //Operacje inicjujące
 
-	//Główna pętla
-	float angle_x=0; //Aktualny kąt obrotu obiektu
-	float angle_y=0; //Aktualny kąt obrotu obiektu
-	glfwSetTime(0); //Zeruj timer
+    //Główna pętla
+    float angle_x = 0; //Aktualny kąt obrotu obiektu
+    float angle_y = 0; //Aktualny kąt obrotu obiektu
+    glfwSetTime(0); //Zeruj timer
 
 
 
-	while (!glfwWindowShouldClose(window)) //Tak długo jak okno nie powinno zostać zamknięte
-	{
-        angle_x+=speed_x*glfwGetTime(); //Zwiększ/zmniejsz kąt obrotu na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
-        angle_y+=speed_y*glfwGetTime(); //Zwiększ/zmniejsz kąt obrotu na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+    while (!glfwWindowShouldClose(window)) //Tak długo jak okno nie powinno zostać zamknięte
+    {
+        angle_x += speed_x * glfwGetTime(); //Zwiększ/zmniejsz kąt obrotu na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
+        angle_y += speed_y * glfwGetTime(); //Zwiększ/zmniejsz kąt obrotu na podstawie prędkości i czasu jaki upłynał od poprzedniej klatki
         glfwSetTime(0); //Zeruj timer
-		drawScene(window,angle_x,angle_y); //Wykonaj procedurę rysującą
-		glfwPollEvents(); //Wykonaj procedury callback w zalezności od zdarzeń jakie zaszły.
-	}
+        drawScene(window, angle_x, angle_y); //Wykonaj procedurę rysującą
+        glfwPollEvents(); //Wykonaj procedury callback w zalezności od zdarzeń jakie zaszły.
+    }
 
-	freeOpenGLProgram(window);
+    freeOpenGLProgram(window);
 
-	glfwDestroyWindow(window); //Usuń kontekst OpenGL i okno
-	glfwTerminate(); //Zwolnij zasoby zajęte przez GLFW
-	exit(EXIT_SUCCESS);
+    glfwDestroyWindow(window); //Usuń kontekst OpenGL i okno
+    glfwTerminate(); //Zwolnij zasoby zajęte przez GLFW
+    exit(EXIT_SUCCESS);
 }
