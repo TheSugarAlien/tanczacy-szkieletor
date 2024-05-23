@@ -1,32 +1,26 @@
-#version 330
+#version 330 core
 
-// Zmienne jednorodne
+
+layout(location = 0) in vec4 vertex;
+layout(location = 1) in vec4 normal;
+layout(location = 2) in vec2 texCoord0;
+
+
+out vec2 texCoord;
+out vec3 Normal;
+out vec3 crntPos;
+
+
 uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
 
-// Atrybuty
-in vec4 vertex; // współrzędne wierzchołka w przestrzeni modelu
-in vec4 color; // kolor związany z wierzchołkiem
-in vec4 normal; // wektor normalny w przestrzeni modelu
-in vec2 texCoord0;
+void main()
+{
+    // Calculate current position
+    crntPos = vec3(M * vertex);
+    gl_Position = P * V * vec4(crntPos, 1.0);
 
-// Zmienne interpolowane
-out vec4 ic;
-out vec4 l;
-out vec4 n;
-out vec4 v;
-out vec2 iTexCoord0;
-
-void main(void) {
-    vec4 lp = vec4(0, 3, 5, 1); // pozycja światła, przestrzeń świata
-    vec4 worldPosition = M * vertex; // Pozycja wierzchołka w przestrzeni świata
-    l = normalize(lp - worldPosition); // wektor do światła w przestrzeni świata
-    v = normalize(-worldPosition); // wektor do obserwatora w przestrzeni świata
-    n = normalize(M * normal); // wektor normalny w przestrzeni świata
-
-    iTexCoord0 = texCoord0;
-    ic = color;
-
-    gl_Position = P * V * worldPosition;
+    texCoord = texCoord0;
+    Normal = normalize(mat3(transpose(inverse(M))) * vec3(normal));
 }

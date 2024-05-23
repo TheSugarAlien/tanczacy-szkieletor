@@ -1,68 +1,92 @@
-//Do przeanalizowania
-#version 330
+#version 330 core
 
-uniform sampler2D textureMap0;
 
-out vec4 pixelColor; // Zmienna wyjściowa fragment shadera. Zapisuje się do niej ostateczny (prawie) kolor piksela
+out vec4 FragColor;
 
-in vec2 iTexCoord0;
-in vec4 ic;
-in vec4 n;
-in vec4 l;
-in vec4 v;
 
-void main(void) {
-    // Znormalizowane interpolowane wektory
-    vec4 ml = normalize(l);
-    vec4 mn = normalize(n);
-    vec4 mv = normalize(v);
-    // Wektor odbity
-    vec4 mr = reflect(-ml, mn);
+in vec2 texCoord;
+in vec3 Normal;
+in vec3 crntPos;
 
-    // Parametry powierzchni
-    vec4 kd = texture(textureMap0, iTexCoord0);
-    vec4 ks = vec4(1, 1, 1, 1);
-    vec4 ambient = vec4(0.3, 0.3, 0.3, 1.0); // Światło otoczenia
-    vec4 diffuse = vec4(0.6, 0.6, 0.6, 1.0); // Składowa dyfuzyjna
-    vec4 specular = vec4(1.0, 1.0, 1.0, 1.0); // Składowa zwierciadlana
 
-    // Obliczenie modelu oświetlenia Phonga
-    float nl = max(dot(mn, ml), 0.0);
-    float rv = pow(max(dot(mr, mv), 0.0), 50);
-    pixelColor = ambient * kd + diffuse * kd * nl + specular * ks * rv;
+uniform sampler2D texStageFloor;
+uniform sampler2D texStageFloorSpec;
+uniform vec3 lightPos[4];
+uniform vec4 lightColors[4];
+uniform vec3 camPos;
+
+vec4 spotLight(int n)
+{
+    // Controls how big the area that is lit up is
+    float outerCone = 0.90f;
+    float innerCone = 0.95f;
+
+    // Ambient lighting
+    float ambient = 0.20f;
+
+    // Diffuse lighting
+    vec3 normal = normalize(Normal);
+    vec3 lightDirection = normalize(lightPos[n] - crntPos);
+    float diffuse = max(dot(normal, lightDirection), 0.0f);
+
+    // Specular lighting
+    float specularLight = 0.50f;
+    vec3 viewDirection = normalize(camPos - crntPos);
+    vec3 reflectionDirection = reflect(-lightDirection, normal);
+    float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 16);
+    float specular = specAmount * specularLight;
+
+
+    float angle = dot(vec3(0.0f, -1.0f, 0.0f), -lightDirection);
+    float inten = clamp((angle - outerCone) / (innerCone - outerCone), 0.0f, 1.0f);
+
+    vec3 texColor = texture(texStageFloor, texCoord).rgb;
+    vec3 specColor = texture(texStageFloorSpec, texCoord).rgb;
+
+    vec3 ambientVec = ambient * texColor * inten * vec3(lightColors[n]);
+    vec3 diffuseVec = diffuse * texColor * inten * vec3(lightColors[n]);
+    vec3 specVec = specular * specColor * inten * vec3(lightColors[n]);
+    return vec4(ambientVec + diffuseVec + specVec, 1.0);
 }
 
+vec4 directionalLight()
+{
+    // Fixed values for the directional light
+    vec3 directionalLightColor = vec3(1.0, 1.0, 1.0); 
+    vec3 directionalLightDirection = normalize(vec3(0, 0, 0)); 
+    vec3 ambientLightColor = vec3(0.3, 0.3, 0.3); 
 
-/*
-#version 330
+    // Ambient lighting
+    float ambient = 0.80f;
 
-uniform sampler2D textureMap0;
+    // Diffuse lighting
+    vec3 normal = normalize(Normal);
+    vec3 lightDirection = normalize(directionalLightDirection);
+    float diffuse = max(dot(normal, lightDirection), 0.0f);
 
-out vec4 pixelColor; // Zmienna wyjściowa fragment shadera. Zapisuje się do niej ostateczny (prawie) kolor piksela
+    // Specular lighting
+    float specularLight = 0.50f;
+    vec3 viewDirection = normalize(camPos - crntPos);
+    vec3 reflectionDirection = reflect(-lightDirection, normal);
+    float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 16);
+    float specular = specAmount * specularLight;
 
-in vec2 iTexCoord0;
-in vec4 ic;
-in vec4 n;
-in vec4 l;
-in vec4 v;
+    // Sample textures
+    vec3 texColor = texture(texStageFloor, texCoord).rgb;
+    vec3 specColor = texture(texStageFloorSpec, texCoord).rgb;
 
-void main(void) {
-    // Znormalizowane interpolowane wektory
-    vec4 ml = normalize(l);
-    vec4 mn = normalize(n);
-    vec4 mv = normalize(v);
-    // Wektor odbity
-    vec4 mr = reflect(-ml, mn);
-
-    // Parametry powierzchni
-    vec4 kd = texture(textureMap0, iTexCoord0);
-    vec4 ks = vec4(1, 1, 1, 1);
-    vec4 ambient = vec4(0.1, 0.1, 0.1, 1.0); // Światło otoczenia
-
-    // Obliczenie modelu oświetlenia
-    float nl = clamp(dot(mn, ml), 0, 1);
-    float rv = pow(clamp(dot(mr, mv), 0, 1), 50);
-    pixelColor = ambient + vec4(kd.rgb * nl, kd.a) + vec4(ks.rgb * rv, 0);
+    vec3 ambientVec = ambient * texColor * ambientLightColor;
+    vec3 diffuseVec = diffuse * texColor * directionalLightColor;
+    vec3 specVec = specular * specColor * directionalLightColor;
+    return vec4(ambientVec + diffuseVec + specVec, 1.0);
 }
 
-*/
+void main()
+{
+    vec3 result = vec3(0.0);
+    for(int i = 0; i < 4; i++)
+        result += spotLight(i).rgb; 
+    result += directionalLight().rgb; 
+    result = clamp(result, 0.0, 1.0); 
+    FragColor = vec4(result, 1.0);
+}

@@ -61,10 +61,13 @@ std::vector<glm::vec4> normsStage = norms;
 std::vector<glm::vec2> texCoordsStage = texCoords;
 std::vector<unsigned int> indicesStage = indices;
 
+
+GLuint texSkeleton;
+GLuint texStageFloor;
+GLuint texStageFloorSpec;
 GLuint tex0;
 GLuint tex1;
-GLuint texSkeleton;
-GLuint texStage;
+
 
 //Procedura obsługi błędów
 void error_callback(int error, const char* description) {
@@ -248,7 +251,7 @@ void loadModel(const std::string& plik) {
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
     //************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
-    glClearColor(1, 1, 1, 0);
+    glClearColor(0, 0, 0, 0);
     glEnable(GL_DEPTH_TEST);
     glfwSetWindowSizeCallback(window, windowResizeCallback);
     glfwSetKeyCallback(window, keyCallback);
@@ -256,7 +259,8 @@ void initOpenGLProgram(GLFWwindow* window) {
     sp = new ShaderProgram("v_simplest.glsl", NULL, "f_simplest.glsl");
 
     texSkeleton = readTexture("skeleton_tex_main.png");
-    texStage = readTexture("disco_tex2.png");
+    texStageFloor = readTexture("disco_tex2.png");
+    texStageFloorSpec = readTexture("disco_tex_spec.png");
 
 
     loadModel(std::string("szkielet1.fbx"));
@@ -265,13 +269,11 @@ void initOpenGLProgram(GLFWwindow* window) {
     texCoordsSkeleton = texCoords;
     indicesSkeleton = indices;
 
-    loadModel(std::string("stage.obj"));
+    loadModel(std::string("stage2.obj"));
     vertsStage = verts;
     normsStage = norms;
     texCoordsStage = texCoords;
     indicesStage = indices;
-
-
 }
 
 
@@ -292,10 +294,25 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
     //************Tutaj umieszczaj kod rysujący obraz******************l
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    float lightPos[] = {
+        -1.5f,  14.0f,  1.5f,
+        1.5f,  14.0f,  1.5f,
+        -1.5f,  14.0f,  -1.5f,
+        1.5f,  14.0f,  -1.5f
+    };
+
+    float lightColors[] = {
+       1.0f, 0.0f, 1.0f, 1.0f,
+       0.0f, 1.0f, 1.0f, 1.0f,
+       0.0f, 0.0f, 1.0f, 1.0f,
+       0.5f, 0.5f, 0.5f, 1.0f
+    };
+
+    glm::vec3 camPos = glm::vec3(0, 10, -8);
 
     glm::mat4 V = glm::lookAt(
-        glm::vec3(-2, 10, -8),
-        glm::vec3(-2, 4, 0),
+        camPos,
+        glm::vec3(0, 4, 0),
         glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
 
    //V = glm::rotate(V, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 0.0f)); 
@@ -311,10 +328,13 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
     //Przeslij parametry programu cieniującego do karty graficznej
     glUniformMatrix4fv(sp->u("P"), 1, false, glm::value_ptr(P));
     glUniformMatrix4fv(sp->u("V"), 1, false, glm::value_ptr(V));
+    glUniform3fv(sp->u("camPos"), 1, glm::value_ptr(camPos));
+    glUniform4fv(sp->u("lightColors"), 4, lightColors);
+    glUniform3fv(sp->u("lightPos"), 4, lightPos);
 
 
     //Rysuj scene
-    glm::mat4 M_stage = glm::scale(M, glm::vec3(1.5f, 1.0f, 1.5)); //Przeskaluj scene jeśli potrzeba
+    glm::mat4 M_stage = glm::scale(M, glm::vec3(1.5f, 1.1f, 1.5)); //Przeskaluj scene jeśli potrzeba
     glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_stage));
 
 
@@ -326,8 +346,13 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
     glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoordsStage.data());
 
     glUniform1i(sp->u("textureMap0"), 0);
+
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texStage);
+    glBindTexture(GL_TEXTURE_2D, texStageFloor);
+
+    glUniform1i(sp->u("textureMap1"), 1);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, texStageFloorSpec);
 
     glDrawElements(GL_TRIANGLES, indicesStage.size(), GL_UNSIGNED_INT, indicesStage.data());
 
@@ -339,7 +364,7 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
 
 
     // Rysuj szkielet
-    glm::mat4 M_skeleton = glm::translate(M, glm::vec3(-2.0f, 4.7f, 0.0f));
+    glm::mat4 M_skeleton = glm::translate(M, glm::vec3(0.0f, 4.7f, 0.0f));
     glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_skeleton));
 
     glEnableVertexAttribArray(sp->a("vertex"));
