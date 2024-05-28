@@ -17,7 +17,6 @@ uniform mat4 M;
 
 void main()
 {
-    // Calculate current position
     crntPos = vec3(M * vertex);
     gl_Position = P * V * vec4(crntPos, 1.0);
 

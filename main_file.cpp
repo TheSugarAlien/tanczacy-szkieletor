@@ -1,22 +1,3 @@
-/*
-Niniejszy program jest wolnym oprogramowaniem; możesz go
-rozprowadzać dalej i / lub modyfikować na warunkach Powszechnej
-Licencji Publicznej GNU, wydanej przez Fundację Wolnego
-Oprogramowania - według wersji 2 tej Licencji lub(według twojego
-wyboru) którejś z późniejszych wersji.
-
-Niniejszy program rozpowszechniany jest z nadzieją, iż będzie on
-użyteczny - jednak BEZ JAKIEJKOLWIEK GWARANCJI, nawet domyślnej
-gwarancji PRZYDATNOŚCI HANDLOWEJ albo PRZYDATNOŚCI DO OKREŚLONYCH
-ZASTOSOWAŃ.W celu uzyskania bliższych informacji sięgnij do
-Powszechnej Licencji Publicznej GNU.
-
-Z pewnością wraz z niniejszym programem otrzymałeś też egzemplarz
-Powszechnej Licencji Publicznej GNU(GNU General Public License);
-jeśli nie - napisz do Free Software Foundation, Inc., 59 Temple
-Place, Fifth Floor, Boston, MA  02110 - 1301  USA
-*/
-
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_SWIZZLE
 
@@ -32,32 +13,75 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include "shaderprogram.h"
 #include "myCube.h"
 #include "myTeapot.h"
-#include <assimp/Importer.hpp> //wczytuje plik
-#include <assimp/scene.h> //obiekt reprezentujacy calosc pliku
-#include <assimp/postprocess.h> //dodatkowe rzeczy ktore mozna robicz modelem
+#include <assimp/Importer.hpp> 
+#include <assimp/scene.h> 
+#include <assimp/postprocess.h> 
 #include <iostream>
 #include <map>
 #include <string>
 #include <vector>
 #include <cassert>
-
+#include <chrono>
 
 
 float speed_x = 0;
 float speed_y = 0;
 float aspectRatio = 1;
 float zoom = -8;
+float rotation = 0.0f;
+
+float lightPos[] = {
+      -1.5f,  14.0f,  1.5f,
+      1.5f,  14.0f,  1.5f,
+      -1.5f,  14.0f,  -1.5f,
+      1.5f,  14.0f,  -1.5f,
+      10.0f,  14.0f,  0.0f,
+      -10.0f,  14.0f,  0.0f
+};
+
+float lightColors[] = {
+   1.0f, 0.0f, 1.0f, 1.0f,
+   0.0f, 1.0f, 1.0f, 1.0f,
+   0.0f, 0.0f, 1.0f, 1.0f,
+   0.5f, 0.5f, 0.5f, 1.0f,
+   1.0f, 0.0f, 0.0f, 1.0f,
+   0.0f, 1.0f, 0.0f, 1.0f
+};
+
+bool enLight = true;
+
 ShaderProgram* sp;
+const aiScene* scene;
 
 std::vector <glm::vec4> verts;
 std::vector <glm::vec4> norms;
 std::vector <glm::vec2> texCoords;
 std::vector <unsigned int> indices;
 
+std::vector <glm::vec4> vertsSkull;
+std::vector <glm::vec4> normsSkull;
+std::vector <glm::vec2> texCoordsSkull;
+std::vector <unsigned int> indicesSkull;
+
 std::vector<glm::vec4> vertsSkeleton;
 std::vector<glm::vec4> normsSkeleton;
 std::vector<glm::vec2> texCoordsSkeleton;
 std::vector<unsigned int> indicesSkeleton;
+
+std::vector<glm::vec4> vertsSkeleton2;
+std::vector<glm::vec4> normsSkeleton2;
+std::vector<glm::vec2> texCoordsSkeleton2;
+
+
+std::vector<glm::vec4> vertsSkeleton3;
+std::vector<glm::vec4> normsSkeleton3;
+std::vector<glm::vec2> texCoordsSkeleton3;
+
+
+std::vector<glm::vec4> vertsSkeleton4;
+std::vector<glm::vec4> normsSkeleton4;
+std::vector<glm::vec2> texCoordsSkeleton4;
+
 
 std::vector<glm::vec4> vertsStage;
 std::vector<glm::vec4> normsStage;
@@ -73,9 +97,21 @@ GLuint texSkeleton;
 GLuint texStageFloor;
 GLuint texStageFloorSpec;
 GLuint texStage;
-GLuint tex0;
-GLuint tex1;
+GLuint texSkull;
 
+struct Vertex {
+    glm::vec4 vertex;
+    glm::vec4 normal;     
+    glm::vec2 texCoords; 
+};
+
+
+struct Mesh {
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+};
+
+std::vector<Mesh> meshes;
 
 //Procedura obsługi błędów
 void error_callback(int error, const char* description) {
@@ -89,6 +125,45 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         if (key == GLFW_KEY_RIGHT) speed_x = PI;
         if (key == GLFW_KEY_UP) speed_y = PI;
         if (key == GLFW_KEY_DOWN) speed_y = -PI;
+        if (key == GLFW_KEY_1) {
+            if (lightPos[1] == -100.0f) lightPos[1] = 14.0f;
+            else lightPos[1] = -100.0f;
+        }
+        if (key == GLFW_KEY_2) {
+            if (lightPos[4] == -100.0f) lightPos[4] = 14.0f;
+            else lightPos[4] = -100.0f;
+        }
+        if (key == GLFW_KEY_3) {
+            if (lightPos[7] == -100.0f) lightPos[7] = 14.0f;
+            else lightPos[7] = -100.0f;
+        }
+        if (key == GLFW_KEY_4) {
+            if (lightPos[10] == -100.0f) lightPos[10] = 14.0f;
+            else lightPos[10] = -100.0f;
+        }
+        if (key == GLFW_KEY_5) {
+            if (lightPos[13] == -100.0f) lightPos[13] = 14.0f;
+            else lightPos[13] = -100.0f;
+        }
+        if (key == GLFW_KEY_6) {
+            if (lightPos[16] == -100.0f) lightPos[16] = 14.0f;
+            else lightPos[16] = -100.0f;
+        }
+        if (key == GLFW_KEY_X) {
+            enLight = !enLight;
+        }
+        if (key == GLFW_KEY_SPACE) {
+            enLight = true;
+            for (int i = 0; i < 6; i++) {
+                lightPos[1 + 3 * i] = 14.0f;
+            }
+        }
+        if (key == GLFW_KEY_0) {
+            enLight = false;
+            for (int i = 0; i < 6; i++) {
+                lightPos[1 + 3 * i] = -100.0f;
+            }
+        }
     }
     if (action == GLFW_REPEAT) {
         if (key == GLFW_KEY_UP && zoom < 8) zoom += 0.15;
@@ -130,321 +205,126 @@ GLuint readTexture(const char* filename) {
 
     return tex;
 }
+Mesh processMesh(aiMesh* mesh, const aiScene* scene) {
+    Mesh myMesh;
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
 
-
-#pragma region ModelLoading
-
-
-/*  // TUTAJ TO POPRZEDNIE MAPOWANIE
-struct BoneInfo {
-    glm::mat4 boneOffset;
-    glm::mat4 finalTransformation;
-};
-
-struct VertexBoneData {
-    unsigned int IDs[4] = { 0 };
-    float weights[4] = { 0.0f };
-
-    void addBoneData(unsigned int boneID, float weight) {
-        for (unsigned int i = 0; i < 4; i++) {
-            if (weights[i] == 0.0f) {
-                IDs[i] = boneID;
-                weights[i] = weight;
-                return;
-            }
-        }
-    }
-};
-
-std::vector<VertexBoneData> bones;
-std::map<std::string, unsigned int> boneMapping;
-std::vector<BoneInfo> boneInfo;
-unsigned int numBones = 0;
-
-
-void importujMesh(aiMesh* mesh, const glm::mat4& transform, unsigned int& vertexOffset) {
-    // Process vertices
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-        aiVector3D vertex = mesh->mVertices[i];
-        glm::vec4 transformedVertex = transform * glm::vec4(vertex.x, vertex.y, vertex.z, 1.0f);
-        verts.push_back(transformedVertex);
+        Vertex vertex;
+        glm::vec4 vector;
 
-        aiVector3D normal = mesh->mNormals[i];
-        glm::vec4 transformedNormal = glm::transpose(glm::inverse(transform)) * glm::vec4(normal.x, normal.y, normal.z, 0.0f);
-        norms.push_back(transformedNormal);
+        vector.x = mesh->mVertices[i].x;
+        vector.y = mesh->mVertices[i].y;
+        vector.z = mesh->mVertices[i].z;
+        vector.w = 1.0f;
+        vertex.vertex = vector;
+
+        if (mesh->mNormals) {
+            vector.x = mesh->mNormals[i].x;
+            vector.y = mesh->mNormals[i].y;
+            vector.z = mesh->mNormals[i].z;
+            vector.w = 0.0f;
+            vertex.normal = vector;
+        }
 
         if (mesh->mTextureCoords[0]) {
-            aiVector3D texCoord = mesh->mTextureCoords[0][i];
-            texCoords.push_back(glm::vec2(texCoord.x, texCoord.y));
+            glm::vec2 vec;
+            vec.x = mesh->mTextureCoords[0][i].x;
+            vec.y = mesh->mTextureCoords[0][i].y;
+            vertex.texCoords = vec;
         }
         else {
-            texCoords.push_back(glm::vec2(0.0f, 0.0f));
+            vertex.texCoords = glm::vec2(0.0f, 0.0f);
         }
 
-        bones.push_back(VertexBoneData()); // Initialize bone data for each vertex
+
+        vertices.push_back(vertex);
     }
 
-    // Process indices
     for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
-        aiFace& face = mesh->mFaces[i];
+        aiFace face = mesh->mFaces[i];
         for (unsigned int j = 0; j < face.mNumIndices; ++j) {
-            indices.push_back(vertexOffset + face.mIndices[j]);
+            indices.push_back(face.mIndices[j]);
         }
     }
 
-    // Load bones
-    for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
-        aiBone* bone = mesh->mBones[i];
-        unsigned int boneIndex = 0;
-        std::string boneName(bone->mName.data);
+  
+    myMesh.vertices = vertices;
+    myMesh.indices = indices;
 
-        if (boneMapping.find(boneName) == boneMapping.end()) {
-            boneIndex = numBones;
-            numBones++;
-            BoneInfo bi;
-            bi.boneOffset = glm::transpose(glm::make_mat4(&bone->mOffsetMatrix.a1));
-            boneInfo.push_back(bi);
-            boneMapping[boneName] = boneIndex;
-        }
-        else {
-            boneIndex = boneMapping[boneName];
-        }
-
-        for (unsigned int j = 0; j < bone->mNumWeights; ++j) {
-            aiVertexWeight& vw = bone->mWeights[j];
-            unsigned int vertexID = vertexOffset + vw.mVertexId;
-            bones[vertexID].addBoneData(boneIndex, vw.mWeight);
-        }
-    }
-
-    // Update vertex offset
-    vertexOffset += mesh->mNumVertices;
+    return myMesh;
 }
 
 
-void processNode(aiNode* node, const aiScene* scene, const glm::mat4& parentTransform, unsigned int& vertexOffset) {
-    glm::mat4 nodeTransform = parentTransform * glm::transpose(glm::make_mat4(&node->mTransformation.a1));
+float getAnimationTime(float deltaTime, float duration) {
+    static float currentTime = 0.0f;
+    currentTime += deltaTime;
+    if (currentTime > duration) {
+        currentTime -= duration;
+    }
+    return currentTime;
+}
 
-    // Process all meshes assigned to this node
+
+void processNode(aiNode* node, const aiScene* scene, std::vector<Mesh>& meshes) {
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        importujMesh(mesh, nodeTransform, vertexOffset);
+        meshes.push_back(processMesh(mesh, scene));
     }
 
-    // Recursively process each child node
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        processNode(node->mChildren[i], scene, nodeTransform, vertexOffset);
-    }
-}
-*/
-
-//TO JEST MAPOWANIE Z TEGO FILMIKU TEGO ŁYSEGO ZIOMKA. WYDAJE SIĘ DOBRZE DZIAŁAĆ
-#define MAX_NUM_BONES_PER_VERTEX 4
-
-struct VertexBoneData
-{
-    unsigned int BoneIDs[MAX_NUM_BONES_PER_VERTEX] = { 0 };
-    float Weights[MAX_NUM_BONES_PER_VERTEX] = { 0.0f };
-
-    VertexBoneData()
-    {
-    }
-
-    void AddBoneData(unsigned int BoneID, float Weight)
-    {
-        for (unsigned int i = 0; i < MAX_NUM_BONES_PER_VERTEX; i++) {
-            if (Weights[i] == 0.0f) {
-                BoneIDs[i] = BoneID;
-                Weights[i] = Weight;
-                //printf("Adding bone %d weight %f at index %i\n", BoneID, Weight, i);
-                return;
-            }
-        }
-
-        // should never get here - more bones than we have space for
-        assert(0);
-    }
-};
-
-std::vector<VertexBoneData> vertex_to_bones;
-std::vector<int> mesh_base_vertex;
-std::map<std::string, unsigned int> bone_name_to_index_map;
-
-
-static int space_count = 0;
-
-void print_space()
-{
-    for (int i = 0; i < space_count; i++) {
-        printf(" ");
+        processNode(node->mChildren[i], scene, meshes);
     }
 }
 
-void print_assimp_matrix(const aiMatrix4x4& m)
-{
-    print_space(); printf("%f %f %f %f\n", m.a1, m.a2, m.a3, m.a4);
-    print_space(); printf("%f %f %f %f\n", m.b1, m.b2, m.b3, m.b4);
-    print_space(); printf("%f %f %f %f\n", m.c1, m.c2, m.c3, m.c4);
-    print_space(); printf("%f %f %f %f\n", m.d1, m.d2, m.d3, m.d4);
-}
-
-int get_bone_id(const aiBone* pBone)
-{
-    int bone_id = 0;
-    std::string bone_name(pBone->mName.C_Str());
-
-    if (bone_name_to_index_map.find(bone_name) == bone_name_to_index_map.end()) {
-        // Allocate an index for a new bone
-        bone_id = (int)bone_name_to_index_map.size();
-        bone_name_to_index_map[bone_name] = bone_id;
-    }
-    else {
-        bone_id = bone_name_to_index_map[bone_name];
-    }
-
-    return bone_id;
-}
-
-void parse_single_bone(int mesh_index, const aiBone* pBone)
-{
-    printf("      Bone '%s': num vertices affected by this bone: %d\n", pBone->mName.C_Str(), pBone->mNumWeights);
-
-    int bone_id = get_bone_id(pBone);
-
-    print_assimp_matrix(pBone->mOffsetMatrix);
-
-    for (unsigned int i = 0; i < pBone->mNumWeights; i++) {
-        const aiVertexWeight& vw = pBone->mWeights[i];
-
-        unsigned int global_vertex_id = mesh_base_vertex[mesh_index] + vw.mVertexId;
-
-        assert(global_vertex_id < vertex_to_bones.size());
-        vertex_to_bones[global_vertex_id].AddBoneData(bone_id, vw.mWeight);
-    }
-
-    printf("\n");
-}
-
-void parse_mesh_bones(int mesh_index, const aiMesh* pMesh)
-{
-    for (unsigned int i = 0; i < pMesh->mNumBones; i++) {
-        parse_single_bone(mesh_index, pMesh->mBones[i]);
-    }
-}
-
-void parse_meshes(const aiScene* pScene)
-{
-    printf("*******************************************************\n");
-    printf("Parsing %d meshes\n\n", pScene->mNumMeshes);
-
-    int total_vertices = 0;
-    int total_indices = 0;
-    int total_bones = 0;
-
-    mesh_base_vertex.resize(pScene->mNumMeshes);
-
-    for (unsigned int i = 0; i < pScene->mNumMeshes; i++) {
-        const aiMesh* pMesh = pScene->mMeshes[i];
-        int num_vertices = pMesh->mNumVertices;
-        int num_indices = pMesh->mNumFaces * 3;
-        int num_bones = pMesh->mNumBones;
-        mesh_base_vertex[i] = total_vertices;
-        printf("  Mesh %d '%s': vertices %d indices %d bones %d\n\n", i, pMesh->mName.C_Str(), num_vertices, num_indices, num_bones);
-        total_vertices += num_vertices;
-        total_indices += num_indices;
-        total_bones += num_bones;
-
-        vertex_to_bones.resize(total_vertices);
-
-        for (unsigned int j = 0; j < pMesh->mNumVertices; j++) {
-            const aiVector3D& pos = pMesh->mVertices[j];
-            verts.emplace_back(pos.x, pos.y, pos.z, 1.0f);
-
-            if (pMesh->HasNormals()) {
-                const aiVector3D& normal = pMesh->mNormals[j];
-                norms.emplace_back(normal.x, normal.y, normal.z, 0.0f);
-            }
-
-            if (pMesh->HasTextureCoords(0)) {
-                const aiVector3D& texCoord = pMesh->mTextureCoords[0][j];
-                texCoords.emplace_back(texCoord.x, texCoord.y);
-            }
-        }
-
-        for (unsigned int j = 0; j < pMesh->mNumFaces; j++) {
-            const aiFace& face = pMesh->mFaces[j];
-            assert(face.mNumIndices == 3);
-            indices.push_back(mesh_base_vertex[i] + face.mIndices[0]);
-            indices.push_back(mesh_base_vertex[i] + face.mIndices[1]);
-            indices.push_back(mesh_base_vertex[i] + face.mIndices[2]);
-        }
-
-        if (pMesh->HasBones()) {
-            parse_mesh_bones(i, pMesh);
-        }
-
-        printf("\n");
-    }
-
-    printf("\nTotal vertices %d total indices %d total bones %d\n", total_vertices, total_indices, total_bones);
-}
-
-void parse_node(const aiNode* pNode)
-{
-    print_space(); printf("Node name: '%s' num children %d num meshes %d\n", pNode->mName.C_Str(), pNode->mNumChildren, pNode->mNumMeshes);
-    print_space(); printf("Node transformation:\n");
-    print_assimp_matrix(pNode->mTransformation);
-
-    space_count += 4;
-
-    for (unsigned int i = 0; i < pNode->mNumChildren; i++) {
-        printf("\n");
-        print_space(); printf("--- %d ---\n", i);
-        parse_node(pNode->mChildren[i]);
-    }
-
-    space_count -= 4;
-}
-
-void parse_hierarchy(const aiScene* pScene)
-{
-    printf("\n*******************************************************\n");
-    printf("Parsing the node hierarchy\n");
-
-    parse_node(pScene->mRootNode);
-}
-
-void parse_scene(const aiScene* pScene)
-{
-    parse_meshes(pScene);
-
-    parse_hierarchy(pScene);
-}
-
-void loadModel(const std::string& plik) {
-    using namespace std;
+std::vector<Mesh> loadModel(const std::string& path) {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(plik,
-        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+    scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+
+    std::vector<Mesh> meshes;
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
-        return;
+        std::cerr << path << "\nERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+        return meshes;
     }
 
-    // Clear previous data
-    verts.clear();
-    norms.clear();
-    texCoords.clear();
-    indices.clear();
+    processNode(scene->mRootNode, scene, meshes);
 
-    unsigned int vertexOffset = 0;
 
-    // Process the root node
-    parse_scene(scene);
+    return meshes;
 }
-#pragma endregion
 
+
+void assignMeshData(const std::vector<Mesh>& meshes,
+    std::vector<glm::vec4>& verts,
+    std::vector<glm::vec4>& norms,
+    std::vector<glm::vec2>& texCoords,
+    std::vector<unsigned int>& indices) {
+    unsigned int indexOffset = 0;
+
+    for (const auto& mesh : meshes) {
+        for (const auto& vertex : mesh.vertices) {
+            verts.push_back(vertex.vertex);
+            norms.push_back(vertex.normal);
+            texCoords.push_back(vertex.texCoords);
+        }
+
+        for (const auto& index : mesh.indices) {
+            indices.push_back(index + indexOffset);
+        }
+
+        indexOffset += mesh.vertices.size();
+    }
+}
+
+std::vector<Mesh> meshesSkeleton;
+std::vector<Mesh> meshesSkeleton2;
+std::vector<Mesh> meshesSkeleton3;
+
+std::vector <glm::vec4> framevVerts;
+std::vector <glm::vec4> frameNorms;
+std::vector <glm::vec2> frameTexCoords;
 
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
@@ -460,25 +340,30 @@ void initOpenGLProgram(GLFWwindow* window) {
     texStage = readTexture("gray.png");
     texStageFloor = readTexture("disco_tex2.png");
     texStageFloorSpec = readTexture("disco_tex_spec.png");
+    texSkull = readTexture("skull_tex.png");
 
 
-    loadModel(std::string("szkielet2.fbx"));
-    vertsSkeleton = verts;
-    normsSkeleton = norms;
-    texCoordsSkeleton = texCoords;
-    indicesSkeleton = indices;
+    std::vector<Mesh> meshesStageFloor = loadModel("stage_floor.obj");
+    assignMeshData(meshesStageFloor, vertsStageFloor, normsStageFloor, texCoordsStageFloor, indicesStageFloor);
 
-    loadModel(std::string("stage_floor.obj"));
-    vertsStageFloor = verts;
-    normsStageFloor = norms;
-    texCoordsStageFloor = texCoords;
-    indicesStageFloor = indices;
+    std::vector<Mesh> meshesStage = loadModel("stage_objects.obj");
+    assignMeshData(meshesStage, vertsStage, normsStage, texCoordsStage, indicesStage);
 
-    loadModel(std::string("stage_objects.obj"));
-    vertsStage = verts;
-    normsStage = norms;
-    texCoordsStage = texCoords;
-    indicesStage = indices;
+    std::vector<Mesh> meshesSkull = loadModel("skull.fbx");
+    assignMeshData(meshesSkull, vertsSkull, normsSkull, texCoordsSkull, indicesSkull);
+
+    meshesSkeleton = loadModel("szkielet_frame1.dae");
+    assignMeshData(meshesSkeleton, vertsSkeleton, normsSkeleton, texCoordsSkeleton, indicesSkeleton);
+
+    meshesSkeleton2 = loadModel("szkielet_frame2.dae");
+    assignMeshData(meshesSkeleton2, vertsSkeleton2, normsSkeleton2, texCoordsSkeleton2, indicesSkeleton);
+
+    meshesSkeleton3 = loadModel("szkielet_frame3.dae");
+    assignMeshData(meshesSkeleton3, vertsSkeleton3, normsSkeleton3, texCoordsSkeleton3, indicesSkeleton);
+
+    framevVerts = vertsSkeleton;
+    frameNorms = normsSkeleton;
+    frameTexCoords = texCoordsSkeleton;
 }
 
 
@@ -488,9 +373,15 @@ void freeOpenGLProgram(GLFWwindow* window) {
 
     delete sp;
 
-    glDeleteTextures(1, &tex0);
+    glDeleteTextures(1, &texSkeleton);
+    glDeleteTextures(1, &texStage);
+    glDeleteTextures(1, &texStageFloor);
+    glDeleteTextures(1, &texSkull);
 }
 
+float timeSinceFrame = 0.0f;
+int currentFrame;
+float frameDuration = 0.01f;
 
 
 
@@ -499,48 +390,35 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
     //************Tutaj umieszczaj kod rysujący obraz******************l
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    float lightPos[] = {
-        -1.5f,  14.0f,  1.5f,
-        1.5f,  14.0f,  1.5f,
-        -1.5f,  14.0f,  -1.5f,
-        1.5f,  14.0f,  -1.5f
-    };
-
-    float lightColors[] = {
-       1.0f, 0.0f, 1.0f, 1.0f,
-       0.0f, 1.0f, 1.0f, 1.0f,
-       0.0f, 0.0f, 1.0f, 1.0f,
-       0.5f, 0.5f, 0.5f, 1.0f
-    };
-
     glm::vec3 camPos = glm::vec3(0, 10, zoom);
 
     glm::mat4 V = glm::lookAt(
         camPos,
         glm::vec3(0, 4, 0),
-        glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz widoku
+        glm::vec3(0.0f, 1.0f, 0.0f));
 
     //V = glm::rotate(V, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 0.0f)); 
 
-    glm::mat4 P = glm::perspective(100.0f * PI / 180.0f, aspectRatio, 0.01f, 80.0f); //Wylicz macierz rzutowania
+    glm::mat4 P = glm::perspective(100.0f * PI / 180.0f, aspectRatio, 0.01f, 80.0f); 
 
     glm::mat4 M = glm::mat4(1.0f);
 
-   // M = glm::rotate(M, -angle_y, glm::vec3(1.0f, 0.0f, 0.0f)); //Wylicz macierz modelu
-   // M = glm::rotate(M, -angle_x, glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz modelu
+
+
+    //M = glm::rotate(M, -angle_y, glm::vec3(1.0f, 0.0f, 0.0f)); //Wylicz macierz modelu
+    //M = glm::rotate(M, -angle_x, glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz modelu
 
 
     sp->use();//Aktywacja programu cieniującego
-    //Przeslij parametry programu cieniującego do karty graficznej
     glUniformMatrix4fv(sp->u("P"), 1, false, glm::value_ptr(P));
     glUniformMatrix4fv(sp->u("V"), 1, false, glm::value_ptr(V));
     glUniform3fv(sp->u("camPos"), 1, glm::value_ptr(camPos));
-    glUniform4fv(sp->u("lightColors"), 4, lightColors);
-    glUniform3fv(sp->u("lightPos"), 4, lightPos);
+    glUniform4fv(sp->u("lightColors"), 6, lightColors);
+    glUniform3fv(sp->u("lightPos"), 6, lightPos);
+    glUniform1i(sp->u("enLight"), enLight ? 1 : 0);
 
-    
-    //Rysuj podgłoge sceny
-    glm::mat4 M_stage = glm::scale(M, glm::vec3(1.75f, 1.1f, 1.5)); //Przeskaluj scene jeśli potrzeba
+    //Podgłoga sceny
+    glm::mat4 M_stage = glm::scale(M, glm::vec3(1.75f, 1.1f, 1.5));
     glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_stage));
 
 
@@ -564,8 +442,8 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
     glDisableVertexAttribArray(sp->a("vertex"));
     glDisableVertexAttribArray(sp->a("normal"));
     glDisableVertexAttribArray(sp->a("texCoord0"));
-    
-   //Rysuj scene
+
+    //Scena
     glEnableVertexAttribArray(sp->a("vertex"));
     glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertsStage.data());
     glEnableVertexAttribArray(sp->a("normal"));
@@ -583,29 +461,106 @@ void drawScene(GLFWwindow* window, float angle_x, float angle_y) {
     glDisableVertexAttribArray(sp->a("normal"));
     glDisableVertexAttribArray(sp->a("texCoord0"));
 
-    
-    // Rysuj szkielet
-    glm::mat4 M_skeleton = glm::translate(M, glm::vec3(0.0f, 4.7f, 0.0f));
-    M_skeleton = glm::rotate(M_skeleton, -angle_x, glm::vec3(0.0f, 1.0f, 0.0f)); //Wylicz macierz modelu
 
-    glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_skeleton));
+    //Czaszki
+    rotation += 6 * PI * glfwGetTime();
+
+    glm::mat4 M_skull_1 = glm::translate(glm::mat4(1.0f), glm::vec3(-10.0f, 5.0f, 0.0f));
+    M_skull_1 = glm::rotate(M_skull_1, glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+    M_skull_1 = glm::rotate(M_skull_1, rotation, glm::vec3(0.0f, 0.0f, -1.0f));
+    M_skull_1 = glm::scale(M_skull_1, glm::vec3(3.0f, 3.0f, 3.0f));
+
+
+
+    glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_skull_1));
+
 
     glEnableVertexAttribArray(sp->a("vertex"));
-    glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertsSkeleton.data());
+    glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, vertsSkull.data());
     glEnableVertexAttribArray(sp->a("normal"));
-    glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normsSkeleton.data());
+    glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, normsSkull.data());
     glEnableVertexAttribArray(sp->a("texCoord0"));
-    glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoordsSkeleton.data());
+    glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, texCoordsSkull.data());
+
+    glUniform1i(sp->u("textureMap0"), 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texSkull);
+
+
+    glDrawElements(GL_TRIANGLES, indicesSkull.size(), GL_UNSIGNED_INT, indicesSkull.data());
+
+
+    glm::mat4 M_skull_2 = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, 5.0f, 0.0f));
+    M_skull_2 = glm::rotate(M_skull_2, glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+    M_skull_2 = glm::rotate(M_skull_2, rotation, glm::vec3(0.0f, 0.0f, 1.0f));
+    M_skull_2 = glm::scale(M_skull_2, glm::vec3(3.0f, 3.0f, 3.0f));
+
+
+    glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_skull_2));
+    glDrawElements(GL_TRIANGLES, indicesSkull.size(), GL_UNSIGNED_INT, indicesSkull.data());
+
+    glDisableVertexAttribArray(sp->a("vertex"));
+    glDisableVertexAttribArray(sp->a("normal"));
+    glDisableVertexAttribArray(sp->a("texCoord0"));
+
+
+    //Szkielet
+    glm::mat4 M_skeleton = glm::translate(M, glm::vec3(0.0f, 4.7f, 0.0f));
+    M_skeleton = glm::rotate(M_skeleton, -angle_x, glm::vec3(0.0f, 1.0f, 0.0f));
+    glUniformMatrix4fv(sp->u("M"), 1, false, glm::value_ptr(M_skeleton));
 
     glUniform1i(sp->u("textureMap0"), 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texSkeleton);
 
-    glDrawElements(GL_TRIANGLES, indicesSkeleton.size(), GL_UNSIGNED_INT, indicesSkeleton.data());
+    timeSinceFrame += glfwGetTime();
 
+    if (timeSinceFrame >= frameDuration)
+    {
+        if (currentFrame == 0)
+        {
+            framevVerts = vertsSkeleton;
+            frameNorms = normsSkeleton;
+            frameTexCoords = texCoordsSkeleton;
+            currentFrame = 1;
+        }
+        else if (currentFrame == 1)
+        {
+            framevVerts = vertsSkeleton2;
+            frameNorms = normsSkeleton2;
+            frameTexCoords = texCoordsSkeleton2;
+            currentFrame = 2;
+        }
+        else if (currentFrame == 2)
+        {
+            framevVerts = vertsSkeleton3;
+            frameNorms = normsSkeleton3;
+            frameTexCoords = texCoordsSkeleton3;
+            currentFrame = 3;
+        }
+        else {
+            framevVerts = vertsSkeleton2;
+            frameNorms = normsSkeleton2;
+            frameTexCoords = texCoordsSkeleton2;
+            currentFrame = 0;
+        }
+        timeSinceFrame = 0.0f;
+
+    }
+
+    glEnableVertexAttribArray(sp->a("vertex"));
+    glVertexAttribPointer(sp->a("vertex"), 4, GL_FLOAT, false, 0, framevVerts.data());
+    glEnableVertexAttribArray(sp->a("normal"));
+    glVertexAttribPointer(sp->a("normal"), 4, GL_FLOAT, false, 0, frameNorms.data());
+    glEnableVertexAttribArray(sp->a("texCoord0"));
+    glVertexAttribPointer(sp->a("texCoord0"), 2, GL_FLOAT, false, 0, frameTexCoords.data());
+
+    glDrawElements(GL_TRIANGLES, indicesSkeleton.size(), GL_UNSIGNED_INT, indicesSkeleton.data());
     glDisableVertexAttribArray(sp->a("vertex"));
     glDisableVertexAttribArray(sp->a("normal"));
     glDisableVertexAttribArray(sp->a("texCoord0"));
+
+
 
     glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
